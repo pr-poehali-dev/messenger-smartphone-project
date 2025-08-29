@@ -25,6 +25,14 @@ interface Message {
   avatar?: string;
 }
 
+interface Chat {
+  id: string;
+  character: AICharacter;
+  lastMessage: string;
+  timestamp: string;
+  unreadCount: number;
+}
+
 const aiCharacters: AICharacter[] = [
   {
     id: '1',
@@ -81,10 +89,48 @@ const sampleMessages: Message[] = [
 ];
 
 export default function Index() {
-  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'characters' | 'chat'>('welcome');
+  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'characters' | 'chats' | 'chat' | 'profile'>('welcome');
   const [selectedCharacter, setSelectedCharacter] = useState<AICharacter | null>(null);
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>(sampleMessages);
   const [newMessage, setNewMessage] = useState('');
+  const [chats, setChats] = useState<Chat[]>([
+    {
+      id: '1',
+      character: aiCharacters[0],
+      lastMessage: 'Звучит здорово! Расскажи подробнее...',
+      timestamp: '10:33',
+      unreadCount: 0
+    },
+    {
+      id: '2', 
+      character: aiCharacters[1],
+      lastMessage: 'Что думаешь о новых технологиях?',
+      timestamp: 'вчера',
+      unreadCount: 2
+    }
+  ]);
+
+  const startChat = (character: AICharacter) => {
+    const existingChat = chats.find(chat => chat.character.id === character.id);
+    if (existingChat) {
+      setSelectedChat(existingChat);
+      setSelectedCharacter(character);
+      setCurrentScreen('chat');
+    } else {
+      const newChat: Chat = {
+        id: Date.now().toString(),
+        character,
+        lastMessage: 'Начать общение',
+        timestamp: 'сейчас',
+        unreadCount: 0
+      };
+      setChats([newChat, ...chats]);
+      setSelectedChat(newChat);
+      setSelectedCharacter(character);
+      setCurrentScreen('chat');
+    }
+  };
 
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
@@ -99,6 +145,16 @@ export default function Index() {
     setMessages([...messages, userMessage]);
     setNewMessage('');
     
+    // Update chat list
+    if (selectedChat) {
+      const updatedChats = chats.map(chat => 
+        chat.id === selectedChat.id 
+          ? { ...chat, lastMessage: newMessage, timestamp: 'сейчас' }
+          : chat
+      );
+      setChats(updatedChats);
+    }
+    
     // Simulate AI response
     setTimeout(() => {
       const aiResponse: Message = {
@@ -109,6 +165,15 @@ export default function Index() {
         avatar: selectedCharacter?.avatar
       };
       setMessages(prev => [...prev, aiResponse]);
+      
+      if (selectedChat) {
+        const updatedChats = chats.map(chat => 
+          chat.id === selectedChat.id 
+            ? { ...chat, lastMessage: aiResponse.text, timestamp: 'сейчас' }
+            : chat
+        );
+        setChats(updatedChats);
+      }
     }, 1000);
   };
 
@@ -207,55 +272,50 @@ export default function Index() {
         
         <div className="px-4 pb-4">
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl font-bold">Lyno</h1>
-            <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">Get Lai+</Badge>
+            <h1 className="text-2xl font-bold">Персонажи</h1>
             <div className="flex gap-2">
               <Icon name="Search" size={20} />
-              <Icon name="Bell" size={20} />
+              <Icon name="SlidersHorizontal" size={20} />
             </div>
           </div>
           
           {/* Categories */}
           <div className="flex gap-2 overflow-x-auto pb-2">
-            <Badge variant="default" className="whitespace-nowrap bg-black text-white">For You</Badge>
-            <Badge variant="outline" className="whitespace-nowrap">Featured</Badge>
-            <Badge variant="outline" className="whitespace-nowrap">Scenes</Badge>
-            <Badge variant="outline" className="whitespace-nowrap">Voices</Badge>
-            <Badge variant="outline" className="whitespace-nowrap">Groups</Badge>
+            <Badge variant="default" className="whitespace-nowrap bg-black text-white">Все</Badge>
+            <Badge variant="outline" className="whitespace-nowrap">Дружба</Badge>
+            <Badge variant="outline" className="whitespace-nowrap">Развлечения</Badge>
+            <Badge variant="outline" className="whitespace-nowrap">Обучение</Badge>
+            <Badge variant="outline" className="whitespace-nowrap">Романтика</Badge>
           </div>
         </div>
       </div>
 
-      {/* Character Cards */}
-      <div className="p-4 space-y-4">
+      {/* Character Grid */}
+      <div className="p-4 grid grid-cols-2 gap-4 pb-20">
         {aiCharacters.map((character) => (
           <Card 
             key={character.id} 
             className="overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:scale-[1.02]"
             onClick={() => {
               setSelectedCharacter(character);
-              setCurrentScreen('chat');
+              setCurrentScreen('profile');
             }}
           >
             <CardContent className="p-0">
-              <div className="flex">
-                <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
-                  <Avatar className="w-20 h-20">
-                    <AvatarImage src={character.avatar} />
-                    <AvatarFallback>{character.name[0]}</AvatarFallback>
-                  </Avatar>
+              <div className="aspect-[3/4] bg-gradient-to-br from-purple-400 to-pink-400 relative">
+                <img 
+                  src={character.avatar} 
+                  alt={character.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-2 right-2">
+                  <div className={`w-3 h-3 rounded-full ${character.isOnline ? 'bg-green-400' : 'bg-gray-400'}`}></div>
                 </div>
-                <div className="flex-1 p-4">
-                  <h3 className="font-semibold text-lg mb-1">{character.name}</h3>
-                  <p className="text-sm text-gray-600 mb-2 line-clamp-2">{character.description}</p>
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary" className="text-xs">{character.category}</Badge>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Icon name="Eye" size={12} className="mr-1" />
-                      830.8k
-                    </div>
-                  </div>
-                </div>
+              </div>
+              <div className="p-3">
+                <h3 className="font-semibold text-base mb-1">{character.name}</h3>
+                <p className="text-xs text-gray-600 mb-2 line-clamp-2">{character.description}</p>
+                <Badge variant="secondary" className="text-xs">{character.category}</Badge>
               </div>
             </CardContent>
           </Card>
@@ -265,13 +325,245 @@ export default function Index() {
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-purple-200 p-4">
         <div className="flex justify-around">
-          <Icon name="Home" size={24} />
-          <Icon name="MessageCircle" size={24} />
-          <Icon name="Plus" size={24} />
-          <Icon name="User" size={24} />
+          <button 
+            onClick={() => setCurrentScreen('characters')}
+            className={`flex flex-col items-center gap-1 ${currentScreen === 'characters' ? 'text-purple-500' : 'text-gray-500'}`}
+          >
+            <Icon name="Users" size={24} />
+            <span className="text-xs">Персонажи</span>
+          </button>
+          <button 
+            onClick={() => setCurrentScreen('chats')}
+            className={`flex flex-col items-center gap-1 ${currentScreen === 'chats' ? 'text-purple-500' : 'text-gray-500'}`}
+          >
+            <Icon name="MessageCircle" size={24} />
+            <span className="text-xs">Чаты</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 text-gray-500">
+            <Icon name="Plus" size={24} />
+            <span className="text-xs">Создать</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 text-gray-500">
+            <Icon name="User" size={24} />
+            <span className="text-xs">Профиль</span>
+          </button>
         </div>
         <div className="w-32 h-1 bg-black/20 rounded-full mx-auto mt-2"></div>
       </div>
+    </div>
+  );
+
+  const ChatsScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-purple-200">
+      {/* Header */}
+      <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-purple-200 z-10">
+        <div className="flex justify-between items-center p-4">
+          <span className="text-sm font-medium">9:41</span>
+          <div className="flex gap-1">
+            <Icon name="Signal" size={16} />
+            <Icon name="Wifi" size={16} />
+            <Icon name="Battery" size={16} />
+          </div>
+        </div>
+        
+        <div className="px-4 pb-4">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold">Чаты</h1>
+            <div className="flex gap-2">
+              <Icon name="Search" size={20} />
+              <Icon name="Edit" size={20} />
+            </div>
+          </div>
+          
+          {/* Search */}
+          <div className="relative">
+            <Icon name="Search" size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+            <Input 
+              placeholder="Поиск чатов..."
+              className="pl-10 rounded-full border-purple-200"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Chats List */}
+      <div className="pb-20">
+        {chats.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-96 text-center px-4">
+            <div className="w-20 h-20 rounded-full bg-purple-100 flex items-center justify-center mb-4">
+              <Icon name="MessageCircle" size={32} className="text-purple-500" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Пока нет чатов</h3>
+            <p className="text-gray-600 mb-4">Выберите персонажа и начните общение</p>
+            <Button 
+              onClick={() => setCurrentScreen('characters')}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+            >
+              Выбрать персонажа
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {chats.map((chat) => (
+              <div 
+                key={chat.id}
+                className="flex items-center p-4 hover:bg-white/50 cursor-pointer transition-colors"
+                onClick={() => {
+                  setSelectedChat(chat);
+                  setSelectedCharacter(chat.character);
+                  setCurrentScreen('chat');
+                }}
+              >
+                <Avatar className="w-12 h-12 mr-3">
+                  <AvatarImage src={chat.character.avatar} />
+                  <AvatarFallback>{chat.character.name[0]}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-1">
+                    <h3 className="font-semibold truncate">{chat.character.name}</h3>
+                    <span className="text-xs text-gray-500">{chat.timestamp}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 truncate">{chat.lastMessage}</p>
+                </div>
+                {chat.unreadCount > 0 && (
+                  <Badge className="ml-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white min-w-[20px] h-5 rounded-full text-xs">
+                    {chat.unreadCount}
+                  </Badge>
+                )}
+                <div className={`w-2 h-2 rounded-full ml-2 ${chat.character.isOnline ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-purple-200 p-4">
+        <div className="flex justify-around">
+          <button 
+            onClick={() => setCurrentScreen('characters')}
+            className={`flex flex-col items-center gap-1 ${currentScreen === 'characters' ? 'text-purple-500' : 'text-gray-500'}`}
+          >
+            <Icon name="Users" size={24} />
+            <span className="text-xs">Персонажи</span>
+          </button>
+          <button 
+            onClick={() => setCurrentScreen('chats')}
+            className={`flex flex-col items-center gap-1 ${currentScreen === 'chats' ? 'text-purple-500' : 'text-gray-500'}`}
+          >
+            <Icon name="MessageCircle" size={24} />
+            <span className="text-xs">Чаты</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 text-gray-500">
+            <Icon name="Plus" size={24} />
+            <span className="text-xs">Создать</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 text-gray-500">
+            <Icon name="User" size={24} />
+            <span className="text-xs">Профиль</span>
+          </button>
+        </div>
+        <div className="w-32 h-1 bg-black/20 rounded-full mx-auto mt-2"></div>
+      </div>
+    </div>
+  );
+
+  const ProfileScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-purple-200">
+      {/* Header */}
+      <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-purple-200 z-10">
+        <div className="flex justify-between items-center p-4">
+          <span className="text-sm font-medium">9:41</span>
+          <div className="flex gap-1">
+            <Icon name="Signal" size={16} />
+            <Icon name="Wifi" size={16} />
+            <Icon name="Battery" size={16} />
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between px-4 pb-4">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setCurrentScreen('characters')}
+          >
+            <Icon name="ArrowLeft" size={20} />
+          </Button>
+          <h2 className="font-semibold">Профиль персонажа</h2>
+          <Button variant="ghost" size="sm">
+            <Icon name="MoreHorizontal" size={20} />
+          </Button>
+        </div>
+      </div>
+
+      {selectedCharacter && (
+        <div className="p-4 pb-20">
+          {/* Avatar and Basic Info */}
+          <div className="text-center mb-6">
+            <div className="relative inline-block">
+              <Avatar className="w-32 h-32 mx-auto mb-4">
+                <AvatarImage src={selectedCharacter.avatar} />
+                <AvatarFallback className="text-2xl">{selectedCharacter.name[0]}</AvatarFallback>
+              </Avatar>
+              <div className={`absolute bottom-4 right-0 w-6 h-6 rounded-full border-2 border-white ${selectedCharacter.isOnline ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+            </div>
+            <h1 className="text-2xl font-bold mb-2">{selectedCharacter.name}</h1>
+            <Badge className="mb-3">{selectedCharacter.category}</Badge>
+            <p className="text-gray-600 leading-relaxed">{selectedCharacter.description}</p>
+          </div>
+
+          {/* Personality */}
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <h3 className="font-semibold mb-2 flex items-center">
+                <Icon name="Sparkles" size={20} className="mr-2 text-purple-500" />
+                Личность
+              </h3>
+              <p className="text-gray-600">{selectedCharacter.personality}</p>
+            </CardContent>
+          </Card>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-purple-500">4.8</div>
+                <div className="text-xs text-gray-600">Рейтинг</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-purple-500">1.2k</div>
+                <div className="text-xs text-gray-600">Чаты</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-purple-500">24/7</div>
+                <div className="text-xs text-gray-600">Онлайн</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            <Button 
+              onClick={() => startChat(selectedCharacter)}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-3 rounded-2xl font-medium shadow-lg"
+            >
+              <Icon name="MessageCircle" size={20} className="mr-2" />
+              Начать чат
+            </Button>
+            <Button 
+              variant="outline"
+              className="w-full py-3 rounded-2xl font-medium"
+            >
+              <Icon name="Heart" size={20} className="mr-2" />
+              Добавить в избранное
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -293,7 +585,7 @@ export default function Index() {
             <Button 
               variant="ghost" 
               size="sm"
-              onClick={() => setCurrentScreen('characters')}
+              onClick={() => setCurrentScreen('chats')}
             >
               <Icon name="ArrowLeft" size={20} />
             </Button>
@@ -307,8 +599,8 @@ export default function Index() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Icon name="Search" size={20} />
-            <Icon name="Bell" size={20} />
+            <Icon name="Phone" size={20} />
+            <Icon name="MoreVertical" size={20} />
           </div>
         </div>
       </div>
@@ -379,6 +671,8 @@ export default function Index() {
     <div className="font-['SF_Pro_Display']">
       {currentScreen === 'welcome' && <WelcomeScreen />}
       {currentScreen === 'characters' && <CharactersScreen />}
+      {currentScreen === 'chats' && <ChatsScreen />}
+      {currentScreen === 'profile' && <ProfileScreen />}
       {currentScreen === 'chat' && <ChatScreen />}
     </div>
   );
